@@ -5,8 +5,10 @@ import io.github.toberocat.guiengine.api.components.GuiComponent;
 import io.github.toberocat.guiengine.api.components.Selectable;
 import io.github.toberocat.guiengine.api.context.GuiContext;
 import io.github.toberocat.guiengine.api.event.spigot.GuiCloseEvent;
+import io.github.toberocat.improvedFactions.core.exceptions.faction.FactionIsFrozenException;
 import io.github.toberocat.improvedFactions.core.exceptions.faction.FactionNotInStorage;
 import io.github.toberocat.improvedFactions.core.exceptions.faction.PlayerHasNoFactionException;
+import io.github.toberocat.improvedFactions.core.faction.Faction;
 import io.github.toberocat.improvedFactions.core.faction.OpenType;
 import io.github.toberocat.improvedFactions.core.player.FactionPlayer;
 import io.github.toberocat.improvedFactions.core.translator.PlaceholderBuilder;
@@ -47,9 +49,11 @@ public class GuiApi implements io.github.toberocat.improvedFactions.core.gui.Gui
         if (!(player.getRaw() instanceof Player bukkitPlayer))
             return;
         GuiContext context;
+        Faction<?> faction;
         try {
+            faction = player.getFaction();
             context = api.openGui(bukkitPlayer, "settings", PlaceholderBuilder
-                    .extractMethods("faction", player.getFaction()));
+                    .extractMethods("faction", faction));
         } catch (PlayerHasNoFactionException | FactionNotInStorage e) {
             throw new RuntimeException(e);
         }
@@ -60,10 +64,16 @@ public class GuiApi implements io.github.toberocat.improvedFactions.core.gui.Gui
                     "§6faction-open-type§c is missing or isn't selectable");
             return;
         }
+
         context.listen(GuiCloseEvent.class, (event) -> {
             String[] values = selectable.getSelectionModel();
             OpenType openType = OpenType.valueOf(values[selectable.getSelected()]);
-            System.out.println("Closed gui: " + openType);
+
+            try {
+                faction.setType(openType);
+            } catch (FactionIsFrozenException e) {
+                player.sendException(e);
+            }
         });
     }
 }
